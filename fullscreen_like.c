@@ -3,12 +3,13 @@
 #define WINDOW_FIRST TEXT("WindowFirst")
 #define WINDOW_SECOND TEXT("WindowSecond")
 
-HWND hWndTarget; // 対象ウィンドウのハンドル
-RECT rectClientTarget; // 対象ウィンドウのクライアント領域（幅と高さを取得）
-RECT rectWindowTarget; // 対象ウィンドウのスクリーン座標
-POINT pointOriginTarget; // 対象ウィンドウのクライアント領域の左上の点のスクリーン座標
+HWND hWndTarget;
+RECT rectClientTarget;
+RECT rectWindowTarget;
+POINT pointOriginTarget;
 
 LRESULT CALLBACK WndProcFirst(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
+LRESULT CALLBACK WndProcSecond(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) {
   WNDCLASSEX wndClassFirst;
@@ -44,12 +45,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
   wndClassFirst.lpszMenuName = NULL;
   wndClassFirst.lpszClassName = WINDOW_FIRST;
   wndClassFirst.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
-  
   if (!RegisterClassEx(&wndClassFirst)) return -1;
   
   wndClassSecond.cbSize = sizeof(WNDCLASSEX);
   wndClassSecond.style = 0;
-  wndClassSecond.lpfnWndProc = DefWindowProc;
+  wndClassSecond.lpfnWndProc = WndProcSecond;
   wndClassSecond.cbClsExtra = 0;
   wndClassSecond.cbWndExtra = 0;
   wndClassSecond.hInstance = hInstance;
@@ -59,16 +59,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
   wndClassSecond.lpszMenuName = NULL;
   wndClassSecond.lpszClassName = WINDOW_SECOND;
   wndClassSecond.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
-  
   if (!RegisterClassEx(&wndClassSecond)) return -1;
   
   hWndFirst = CreateWindow(
-    WINDOW_FIRST, TEXT("window first"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 200, 200, NULL, NULL, hInstance, NULL
+    WINDOW_FIRST, TEXT("windowFirst"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 200, 200, NULL, NULL, hInstance, NULL
   );
-  
   if (hWndFirst == NULL) return -1;
   
-  while (GetMessage(&msg, NULL, 0, 0)) {
+  while (GetMessage(&msg, NULL, 0, 0)) { // 対象ウィンドウを選択するまでのメッセージループ
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
@@ -77,63 +75,93 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
   HWND hWndDesk = GetDesktopWindow();
   GetWindowRect(hWndDesk, &rectDesk);
   
-  SetWindowPos(NULL, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+  hWndSecondBackground = CreateWindow( // 対象ウィンドウの後ろにウィンドウを敷いておく
+    WINDOW_SECOND, TEXT("windowSecondBackground"), WS_POPUP | WS_VISIBLE,
+    rectDesk.left,
+    rectDesk.top,
+    rectDesk.right + 1,
+    rectDesk.bottom + 1,
+    NULL, NULL, hInstance, NULL
+  );
+  if (hWndSecondBackground == NULL) return -1;
+  SetWindowPos(hWndSecondBackground, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
   
-  hWndSecondTop = CreateWindow(
-    WINDOW_SECOND, TEXT("aaa"), WS_POPUP | WS_VISIBLE, rectDesk.left, rectDesk.top, rectDesk.right+1, pointOriginTarget.y + 1, NULL, NULL, hInstance, NULL
+  hWndSecondTop = CreateWindow( // 上側のウィンドウ
+    WINDOW_SECOND, TEXT("windowSecondTop"), WS_POPUP | WS_VISIBLE,
+    rectDesk.left,
+    rectDesk.top,
+    rectDesk.right + 1,
+    pointOriginTarget.y + 1,
+    NULL, NULL, hInstance, NULL
   );
-  hWndSecondLeft = CreateWindow(
-    WINDOW_SECOND, TEXT("aaa"), WS_POPUP | WS_VISIBLE, rectDesk.left, rectDesk.top, pointOriginTarget.x+1, rectDesk.bottom+1, NULL, NULL, hInstance, NULL
+  hWndSecondLeft = CreateWindow( // 左側のウィンドウ
+    WINDOW_SECOND, TEXT("windowSecondLeft"), WS_POPUP | WS_VISIBLE,
+    rectDesk.left,
+    rectDesk.top,
+    pointOriginTarget.x + 1,
+    rectDesk.bottom + 1,
+    NULL, NULL, hInstance, NULL
   );
-  hWndSecondBottom = CreateWindow(
-    WINDOW_SECOND, TEXT("aaa"), WS_POPUP | WS_VISIBLE, rectDesk.left, pointOriginTarget.y + rectClientTarget.bottom - 1, rectDesk.right+1, rectDesk.bottom - pointOriginTarget.y - rectClientTarget.bottom + 2, NULL, NULL, hInstance, NULL
+  hWndSecondBottom = CreateWindow( // 下側のウィンドウ
+    WINDOW_SECOND, TEXT("windowSecondBottom"), WS_POPUP | WS_VISIBLE,
+    rectDesk.left,
+    pointOriginTarget.y + rectClientTarget.bottom - 1,
+    rectDesk.right + 1,
+    rectDesk.bottom - pointOriginTarget.y - rectClientTarget.bottom + 2,
+    NULL, NULL, hInstance, NULL
   );
-  hWndSecondRight = CreateWindow(
-    WINDOW_SECOND, TEXT("aaa"), WS_POPUP | WS_VISIBLE, pointOriginTarget.x + rectClientTarget.right - 1, rectDesk.top, rectDesk.right - pointOriginTarget.x - rectClientTarget.right + 2, rectDesk.bottom+1, NULL, NULL, hInstance, NULL
-  );
-  hWndSecondBackground = CreateWindow(
-    WINDOW_SECOND, TEXT("aaa"), WS_POPUP | WS_VISIBLE, rectDesk.left, rectDesk.top, rectDesk.right+1, rectDesk.bottom+1, NULL, NULL, hInstance, NULL
+  hWndSecondRight = CreateWindow( // 右側のウィンドウ
+    WINDOW_SECOND, TEXT("windowSecondRight"), WS_POPUP | WS_VISIBLE,
+    pointOriginTarget.x + rectClientTarget.right - 1,
+    rectDesk.top,
+    rectDesk.right - pointOriginTarget.x - rectClientTarget.right + 2,
+    rectDesk.bottom + 1,
+    NULL, NULL, hInstance, NULL
   );
   if (hWndSecondTop == NULL) return -1;
   if (hWndSecondLeft == NULL) return -1;
   if (hWndSecondBottom == NULL) return -1;
   if (hWndSecondRight == NULL) return -1;
-  if (hWndSecondBackground == NULL) return -1;
-  SetWindowPos(hWndSecondBackground, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
   SetWindowPos(hWndSecondTop, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
   SetWindowPos(hWndSecondLeft, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
   SetWindowPos(hWndSecondBottom, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
   SetWindowPos(hWndSecondRight, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
   
-  dwThreadId = GetCurrentThreadId();
-  dwThreadIdTarget = GetWindowThreadProcessId(hWndTarget, NULL);
+  dwThreadId = GetCurrentThreadId(); // このプロセスのスレッドid
+  dwThreadIdTarget = GetWindowThreadProcessId(hWndTarget, NULL); // 対象ウィンドウのスレッドid
   if (dwThreadId != dwThreadIdTarget) {
     if (!AttachThreadInput(dwThreadId, dwThreadIdTarget, TRUE)) return -1;
   }
   
-  SetForegroundWindow(hWndTarget);
-  while (TRUE) {
-    if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+  SetActiveWindow(hWndTarget); // 使いやすさのため、対象ウィンドウを最前面・アクティブにする。
+  
+  while (TRUE) { // メインループ
+    if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) { // hWndSecondのどれかがメッセージを受け取っているとき
       if (msg.message == WM_QUIT) break;
       TranslateMessage(&msg);
       DispatchMessage(&msg);
     }
     else {
       if (GetKeyState(VK_ESCAPE) < 0) {
-        flag = TRUE;
+        flag = TRUE; // Escが押されているとき
       }
       else if (GetWindowRect(hWndTarget, &rectWindowTargetBuffer)) {
-        if (rectWindowTargetBuffer.left == rectWindowTarget.left && rectWindowTargetBuffer.top == rectWindowTarget.top &&rectWindowTargetBuffer.right == rectWindowTarget.right &&rectWindowTargetBuffer.bottom == rectWindowTarget.bottom) flag = FALSE;
-        else flag = TRUE;
+        if (
+          rectWindowTargetBuffer.left == rectWindowTarget.left &&
+          rectWindowTargetBuffer.top == rectWindowTarget.top &&
+          rectWindowTargetBuffer.right == rectWindowTarget.right &&
+          rectWindowTargetBuffer.bottom == rectWindowTarget.bottom
+        ) flag = FALSE; // 対象ウィンドウが移動していないとき
+        else flag = TRUE; // 対象ウィンドウが移動したとき
       }
       else flag = TRUE; // ウィンドウがないとき
       if (flag == TRUE) {
         AttachThreadInput(dwThreadId, dwThreadIdTarget, FALSE);
         PostQuitMessage(0);
-        break;
       }
     }
   }
+  
   return msg.wParam;
 }
 
@@ -156,11 +184,25 @@ LRESULT CALLBACK WndProcFirst(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_KILLFOCUS: {
       hWndTarget = GetForegroundWindow();
       GetClientRect(hWndTarget, &rectClientTarget); // 幅、高さ
-      GetWindowRect(hWndTarget, &rectWindowTarget);
+      GetWindowRect(hWndTarget, &rectWindowTarget); // ウィンドウのスクリーン座標
       pointOriginTarget.x = (LONG)0;
       pointOriginTarget.y = (LONG)0;
-      ClientToScreen(hWndTarget, &pointOriginTarget); // 座標
+      ClientToScreen(hWndTarget, &pointOriginTarget); // クライアント領域の左上の点のスクリーン座標
       SendMessage(hWnd, WM_CLOSE, 0, 0);
+      return 0;
+    }
+  }
+  return DefWindowProc(hWnd, msg, wp, lp);
+}
+
+LRESULT CALLBACK WndProcSecond(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
+  switch (msg) {
+    case WM_DESTROY: {
+      PostQuitMessage(0);
+      return 0;
+    }
+    case WM_KEYDOWN: {
+      if (wp == VK_ESCAPE) PostMessage(hWnd, WM_CLOSE, 0, 0);
       return 0;
     }
   }
