@@ -1,5 +1,5 @@
 # fullscreen_like
-This application make a window in fullscreen-like mode, not changing the size of the window.  You can concentrate on the PC game.
+This application makes a window in fullscreen-like mode, not changing the size of the window.  You can concentrate on the PC game.
 
 ## Usage
 Launch the app.  
